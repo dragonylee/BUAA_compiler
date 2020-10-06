@@ -8,6 +8,7 @@ void ungetnowc() {ungetc(nowc,stdin);}
 
 void error(){};
 
+// 读取一个token，返回token的类别码，如果读完了返回-1
 int get_token(token &nowtoken)
 {
     std::string nows;
