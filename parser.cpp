@@ -55,6 +55,52 @@ int Parser::get_identifier_type(std::string word)
     对于可能出现多次的（也就是{}里面的），用while这种格式
 */
 
+// <加法运算符> ::= +|-
+void Parser::jiafayunsuanfu()
+{
+    if(nowtoken.type!=PLUS && nowtoken.type!=MINU)
+    {
+        error();
+        get_nowtoken();
+    }
+    else
+    {
+        get_nowtoken();
+        grammer g(JIAFAYUNSUANFU);
+        //
+    }
+}
+
+// <乘法运算符> ::= *|/
+void Parser::chengfayunsuanfu()
+{
+    if(nowtoken.type!=MULT && nowtoken.type!=DIV)
+    {
+        error();
+        get_nowtoken();
+    }
+    else
+    {
+        get_nowtoken();
+        grammer g(CHENGFAYUNSUANFU);
+    }
+}
+
+// <关系运算符> ::= <|<=|>|>=|!=|==
+void Parser::guanxiyunsuanfu()
+{
+    if(!(nowtoken.type==LSS || nowtoken.type==LEQ || nowtoken.type==GRE || nowtoken.type==GEQ || nowtoken.type==NEQ || nowtoken.type==EQL))
+    {
+        error();
+        get_nowtoken();
+    }
+    else
+    {
+        get_nowtoken();
+        grammer g(GUANXIYUNSUANFU);
+    }
+}
+
 // <字符> ::= CHARCON
 void Parser::zifu()
 {
@@ -102,7 +148,7 @@ void Parser::zifuchuan()
     如果当前是{INTTK,CHARTK}，且后两个的token的type是LPARENT，进入<有返回值函数定义>；
     如果当前是VOIDTK，且后一个的token的type不是MAINTK，进入<无返回值函数定义>；
 }
-如果当前是VOIDTK，且后一个的token的type是MAINTK，进入<主函数>；
+进入<主函数>；
 */
 void Parser::chengxu()
 {
@@ -127,14 +173,8 @@ void Parser::chengxu()
             wufanhuizhihanshudingyi();  // 无返回值函数定义
         }
     }
-    if(nowtoken.type==VOIDTK && cur<tokens_num && tokens[cur].type==MAINTK)
-    {
-        zhuhanshu();    // 主函数
-    }
-    else
-    {
-        error();
-    }
+    zhuhanshu();    // 主函数
+
     grammer g(CHENGXU);
     print_grammer(g);
 }
@@ -255,11 +295,7 @@ void Parser::zhengshu()
 {
     if(nowtoken.type==PLUS || nowtoken.type==MINU)
     {
-        get_nowtoken();
-    }
-    else if(nowtoken.type!=INTCON)
-    {
-        error();
+        jiafayunsuanfu();
     }
     wufuhaozhengshu();
 
@@ -304,16 +340,10 @@ void Parser::shengmingtoubu()
 
 // <常量> ::= <整数>|<字符>
 // 字符的首符号集为{CHARCON}
-// 整数的首符号集为{CHARCON,INTCON}
-/*
-处理步骤：
-如果当前token的type为INTCON，或者下一个token的type为INTCON，那么进入zhengshu;
-否则如果当前token的type为CHARCON，进入字符；
-否则报错
-*/
+// 整数的首符号集为{PLUS,MINU,INTCON}
 void Parser::changliang()
 {
-    if(nowtoken.type==INTCON || (cur<tokens_num && tokens[cur].type==INTCON))
+    if(nowtoken.type==INTCON || nowtoken.type==PLUS || nowtoken.type==MINU)
     {
         zhengshu();
     }
@@ -378,7 +408,7 @@ void Parser::bianliangshuoming()
         tokens[cur+1]为LBRACK 且 tokens[cur+4]为ASSIGN
         tokens[cur+1]为LBRACK 且 tokens[cur+4]为LBRACK 且 token[cur+7]为ASSIGN
 为真，那么进入bianliangdingyijichushihua（<变量定义及初始化>）
-否则进入bianliangdingyiwuchushihua（<变量定义及初始化>）
+否则进入bianliangdingyiwuchushihua（<变量定义无初始化>）
 */
 void Parser::bianliangdingyi()
 {
@@ -786,12 +816,12 @@ void Parser::biaodashi()
 {
     if(nowtoken.type==PLUS || nowtoken.type==MINU)
     {
-        get_nowtoken();
+        jiafayunsuanfu();
     }
     xiang();
     while(nowtoken.type==PLUS || nowtoken.type==MINU)
     {
-        get_nowtoken();
+        jiafayunsuanfu();
         xiang();
     }
 
@@ -805,7 +835,7 @@ void Parser::xiang()
     yinzi();
     while(nowtoken.type==MULT || nowtoken.type==DIV)
     {
-        get_nowtoken();
+        chengfayunsuanfu();
         yinzi();
     }
 
@@ -831,7 +861,7 @@ void Parser::xiang()
 如果nowtoken的type是IDENFR，且tokens[cur].type==LPARENT，那么进入youfanhuizhihanshudiaoyongyuju
 如果nowtoken的type是IDENFR，结束；
 如果nowtoken的type是LPARENT，进入biaodashi，然后处理RPARENT；
-如果nowtoken的word是"+"/"-"且tokens[cur].type==INTCON，或者nowtoken的type是INTCON，那么进入zhengshu；
+如果nowtoken的type是PLUS、MINU或INTCON，进入zhengshu；
 如果nowtoken的type是CHARCON，进入字符
 */
 void Parser::yinzi()
@@ -877,7 +907,7 @@ void Parser::yinzi()
         }
         get_nowtoken();
     }
-    else if(((nowtoken.type==PLUS || nowtoken.type==MINU) && cur<tokens_num && tokens[cur].type==INTCON) || nowtoken.type==INTCON)
+    else if(nowtoken.type==PLUS || nowtoken.type==MINU || nowtoken.type==INTCON)
     {
         zhengshu();
     }
@@ -1079,12 +1109,7 @@ void Parser::tiaojianyuju()
 void Parser::tiaojian()
 {
     biaodashi();
-    //  <｜<=｜>｜>=｜!=｜==
-    if(!(nowtoken.type==LSS || nowtoken.type==LEQ || nowtoken.type==GRE || nowtoken.type==GEQ || nowtoken.type==NEQ || nowtoken.type==EQL))
-    {
-        error();
-    }
-    get_nowtoken();
+    guanxiyunsuanfu();
     biaodashi();
 
     grammer g(TIAOJIAN);

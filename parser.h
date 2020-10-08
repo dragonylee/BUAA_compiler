@@ -27,6 +27,9 @@ private:
     int get_identifier_type(std::string word);
 public:
     // 各个子处理程序
+    void jiafayunsuanfu();
+    void chengfayunsuanfu();
+    void guanxiyunsuanfu();
     void zifu();
     void zifuchuan();
     void chengxu();

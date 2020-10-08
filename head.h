@@ -9,7 +9,7 @@
 
 #define PW std::cout<<"________something_need_to_show__________\n";
 
-// tokenµÄÀà±ğÂë¶¨Òå
+// tokençš„ç±»åˆ«ç å®šä¹‰
 #define IDENFR 1
 #define INTCON 2
 #define CHARCON 3
@@ -50,7 +50,7 @@
 #define LBRACE 38
 #define RBRACE 39
 
-// ÖÕ½á·û
+// ç»ˆç»“ç¬¦
 struct token
 {
     int type;
@@ -59,7 +59,7 @@ struct token
     token(int type=0,std::string word="",int line=0);
 };
 
-// ¸ù¾İÀà±ğÂë£¨ÕûĞÍ£©£¬·µ»Ø¸ÃÀà±ğµÄ×Ö·û´®
+// æ ¹æ®ç±»åˆ«ç ï¼ˆæ•´å‹ï¼‰ï¼Œè¿”å›è¯¥ç±»åˆ«çš„å­—ç¬¦ä¸²
 std::string token_type_to_string(int type);
 
 int is_reserverd_word(std::string s);
@@ -92,68 +92,67 @@ bool is_valid_str(char c);
 bool is_valid_char(char c);
 
 
-// grammerµÄÀà±ğÂë¶¨Òå
-#define JIAFAYUNSUANFU 1        // ¼Ó·¨ÔËËã·û
-#define CHENGFAYUNSUANFU 2      // ³Ë·¨ÔËËã·û
-#define GUANXIYUNSUANFU 3       // ¹ØÏµÔËËã·û
-#define ZIMU 4                  // ×ÖÄ¸
-#define SHUZI 5                 // Êı×Ö
-// ÒÔÏÂµÄ¶¼ÓĞÓï·¨×Ó³ÌĞò½øĞĞ´¦Àí
-#define ZIFU 6                  // ×Ö·û
-#define ZIFUCHUAN 7             // ×Ö·û´®
-#define CHENGXU 8               // ³ÌĞò
-#define CHANGLIANGSHUOMING 9    // ³£Á¿ËµÃ÷
-#define CHANGLIANGDINGYI 10     // ³£Á¿¶¨Òå
-#define WUFUHAOZHENGSHU 11      // ÎŞ·ûºÅÕûÊı
-#define ZHENGSHU 12             // ÕûÊı
-#define BIAOSHIFU 13            // ±êÊ¶·û
-#define SHENGMINGTOUBU 14       // ÉùÃ÷Í·²¿
-#define CHANGLIANG 15           // ³£Á¿
-#define BIANLIANGSHUOMING 16    // ±äÁ¿ËµÃ÷
-#define BIANLIANGDINGYI 17      // ±äÁ¿¶¨Òå
-#define BIANLIANGDINGYIWUCHUSHIHUA 18   // ±äÁ¿¶¨ÒåÎŞ³õÊ¼»¯
-#define BIANLIANGDINGYIJICHUSHIHUA 19   // ±äÁ¿¶¨Òå¼°³õÊ¼»¯
-#define LEIXINGBIAOSHIFU 20     // ÀàĞÍ±êÊ¶·û
-#define YOUFANHUIZHIHANSHUDINGYI 21     // ÓĞ·µ»ØÖµº¯Êı¶¨Òå
-#define WUFANHUIZHIHANSHUDINGYI 22      // ÎŞ·µ»ØÖµº¯Êı¶¨Òå
-#define FUHEYUJU 23             // ¸´ºÏÓï¾ä
-#define CANSHUBIAO 24           // ²ÎÊı±í
-#define ZHUHANSHU 25            // Ö÷º¯Êı
-#define BIAODASHI 26            // ±í´ïÊ½
-#define XIANG 27                // Ïî
-#define YINZI 28                // Òò×Ó
-#define YUJU 29                 // Óï¾ä
-#define FUZHIYUJU 30            // ¸³ÖµÓï¾ä
-#define TIAOJIANYUJU 31         // Ìõ¼şÓï¾ä
-#define TIAOJIAN 32             // Ìõ¼ş
-#define XUNHUANYUJU 33          // Ñ­»·Óï¾ä
-#define BUCHANG 34              // ²½³¤
-#define QINGKUANGYUJU 35        // Çé¿öÓï¾ä
-#define QINGKUANGBIAO 36        // Çé¿ö±í
-#define QINGKUANGZIYUJU 37      // Çé¿ö×ÓÓï¾ä
-#define QUESHENG 38             // È±Ê¡
-#define YOUFANHUIZHIHANSHUDIAOYONGYUJU 39   // ÓĞ·µ»ØÖµº¯Êıµ÷ÓÃÓï¾ä
-#define WUFANHUIZHIHANSHUDIAOYONGYUJU 40    // ÎŞ·µ»ØÖµº¯Êıµ÷ÓÃÓï¾ä
-#define ZHICANSHUBIAO 41        // Öµ²ÎÊı±í
-#define YUJULIE 42              // Óï¾äÁĞ
-#define DUYUJU 43               // ¶ÁÓï¾ä
-#define XIEYUJU 44              // Ğ´Óï¾ä
-#define FANHUIYUJU 45           // ·µ»ØÓï¾ä
+// grammerçš„ç±»åˆ«ç å®šä¹‰
+#define JIAFAYUNSUANFU 1        // åŠ æ³•è¿ç®—ç¬¦
+#define CHENGFAYUNSUANFU 2      // ä¹˜æ³•è¿ç®—ç¬¦
+#define GUANXIYUNSUANFU 3       // å…³ç³»è¿ç®—ç¬¦
+#define ZIMU 4                  // å­—æ¯
+#define SHUZI 5                 // æ•°å­—
+#define ZIFU 6                  // å­—ç¬¦
+#define ZIFUCHUAN 7             // å­—ç¬¦ä¸²
+#define CHENGXU 8               // ç¨‹åº
+#define CHANGLIANGSHUOMING 9    // å¸¸é‡è¯´æ˜
+#define CHANGLIANGDINGYI 10     // å¸¸é‡å®šä¹‰
+#define WUFUHAOZHENGSHU 11      // æ— ç¬¦å·æ•´æ•°
+#define ZHENGSHU 12             // æ•´æ•°
+#define BIAOSHIFU 13            // æ ‡è¯†ç¬¦
+#define SHENGMINGTOUBU 14       // å£°æ˜å¤´éƒ¨
+#define CHANGLIANG 15           // å¸¸é‡
+#define BIANLIANGSHUOMING 16    // å˜é‡è¯´æ˜
+#define BIANLIANGDINGYI 17      // å˜é‡å®šä¹‰
+#define BIANLIANGDINGYIWUCHUSHIHUA 18   // å˜é‡å®šä¹‰æ— åˆå§‹åŒ–
+#define BIANLIANGDINGYIJICHUSHIHUA 19   // å˜é‡å®šä¹‰åŠåˆå§‹åŒ–
+#define LEIXINGBIAOSHIFU 20     // ç±»å‹æ ‡è¯†ç¬¦
+#define YOUFANHUIZHIHANSHUDINGYI 21     // æœ‰è¿”å›å€¼å‡½æ•°å®šä¹‰
+#define WUFANHUIZHIHANSHUDINGYI 22      // æ— è¿”å›å€¼å‡½æ•°å®šä¹‰
+#define FUHEYUJU 23             // å¤åˆè¯­å¥
+#define CANSHUBIAO 24           // å‚æ•°è¡¨
+#define ZHUHANSHU 25            // ä¸»å‡½æ•°
+#define BIAODASHI 26            // è¡¨è¾¾å¼
+#define XIANG 27                // é¡¹
+#define YINZI 28                // å› å­
+#define YUJU 29                 // è¯­å¥
+#define FUZHIYUJU 30            // èµ‹å€¼è¯­å¥
+#define TIAOJIANYUJU 31         // æ¡ä»¶è¯­å¥
+#define TIAOJIAN 32             // æ¡ä»¶
+#define XUNHUANYUJU 33          // å¾ªç¯è¯­å¥
+#define BUCHANG 34              // æ­¥é•¿
+#define QINGKUANGYUJU 35        // æƒ…å†µè¯­å¥
+#define QINGKUANGBIAO 36        // æƒ…å†µè¡¨
+#define QINGKUANGZIYUJU 37      // æƒ…å†µå­è¯­å¥
+#define QUESHENG 38             // ç¼ºçœ
+#define YOUFANHUIZHIHANSHUDIAOYONGYUJU 39   // æœ‰è¿”å›å€¼å‡½æ•°è°ƒç”¨è¯­å¥
+#define WUFANHUIZHIHANSHUDIAOYONGYUJU 40    // æ— è¿”å›å€¼å‡½æ•°è°ƒç”¨è¯­å¥
+#define ZHICANSHUBIAO 41        // å€¼å‚æ•°è¡¨
+#define YUJULIE 42              // è¯­å¥åˆ—
+#define DUYUJU 43               // è¯»è¯­å¥
+#define XIEYUJU 44              // å†™è¯­å¥
+#define FANHUIYUJU 45           // è¿”å›è¯­å¥
 
-// ·ÇÖÕ½á·û
+// éç»ˆç»“ç¬¦
 struct grammer
 {
     int type;
     grammer(int type=0);
 };
 
-// ¸ù¾İgrammerÀà±ğÂë£¬·µ»Ø¶ÔÓ¦Óï·¨³É·ÖµÄ×Ö·û´®
+// æ ¹æ®grammerç±»åˆ«ç ï¼Œè¿”å›å¯¹åº”è¯­æ³•æˆåˆ†çš„å­—ç¬¦ä¸²
 std::string grammer_type_to_string(int type);
 
 void print_grammer(grammer g);
 
 
-// ·ûºÅ±íµÄÏà¹Ø¶¨Òå
+// ç¬¦å·è¡¨çš„ç›¸å…³å®šä¹‰
 #define ZHENGXINGBIANLIANG 1
 #define ZIFUBIANLIANG 2
 #define ZHENGXINGCHANGLIANG 3
