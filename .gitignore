@@ -1,0 +1,9 @@
+*.txt
+*.rar
+*.cbp
+*.depend
+*.layout
+*.pdf
+obj/
+bin/
+.git/
