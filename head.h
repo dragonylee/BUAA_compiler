@@ -1,11 +1,17 @@
 #ifndef __HEAD_H__
 #define __HEAD_H__
 
+//#define PRINT_TOKEN
+//#define PRINT_GRAMMER
+#define PRINT_ERROR
+
 #include <iostream>
 #include <cstdio>
 #include <algorithm>
 #include <vector>
 #include <set>
+#include <map>
+#include <string>
 
 #define PW std::cout<<"________something_need_to_show__________\n";
 
@@ -49,6 +55,8 @@
 #define RBRACK 37
 #define LBRACE 38
 #define RBRACE 39
+
+std::string str_tolower(std::string s);
 
 // 终结符
 struct token

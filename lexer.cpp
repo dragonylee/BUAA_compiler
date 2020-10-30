@@ -66,13 +66,14 @@ int Lexer::get_token(token &nowtoken)
         getnowc();
         if(!is_valid_char(nowc))
         {
-            error();
+            error(); // 字符不合法
         }
         nows+=nowc;
         getnowc();
         if(nowc!='\'')
         {
             error();
+            while(nowc!='\'') getnowc();
         }
         getnowc();
         nowtoken=token(CHARCON,nows,nowline);
@@ -89,11 +90,12 @@ int Lexer::get_token(token &nowtoken)
         }
         if(nows.length()==0)
         {
-            error();
+            error(); // 符号串不合法
         }
         if(nowc!='\"')
         {
             error();
+            while(nowc!='\"') getnowc();
         }
         getnowc();
         nowtoken=token(STRCON,nows,nowline);

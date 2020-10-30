@@ -4,7 +4,7 @@
 #include "lexer.h"
 #include "head.h"
 #include "error.h"
-
+#include "symbol.h"
 
 /*
 语法分析。
@@ -16,15 +16,16 @@ class Parser
 {
 private:
     token nowtoken;
+    token lasttoken;
     std::vector<token> tokens;
-    std::vector<identifier> table; // 符号表
     int cur;    // 这里的cur永远指向tokens中的下一个token
     int tokens_num;
     // 获取下一个token，存入nowtoken中，如果没有了返回-1，并且nowtoken的type赋值为0
     int get_nowtoken();
-    bool insert_identifier(int type,std::string word);  // 插入符号表
-    // 返回某个标识符s的类别，如果不存在该标识符则返回-1
-    int get_identifier_type(std::string word);
+    // 记录当前在哪个函数中，"global"表示在全局区
+    std::string nowWord;
+
+    void run_until(int token_type);
 public:
     // 各个子处理程序
     void jiafayunsuanfu();
@@ -37,9 +38,8 @@ public:
     void changliangdingyi();
     void wufuhaozhengshu();
     void zhengshu();
-    bool biaoshifu();
     void shengmingtoubu();
-    void changliang();
+    int changliang();
     void bianliangshuoming();
     void bianliangdingyi();
     void bianliangdingyiwuchushihua();
@@ -48,11 +48,11 @@ public:
     void youfanhuizhihanshudingyi();
     void wufanhuizhihanshudingyi();
     void fuheyuju();
-    void canshubiao();
+    int canshubiao();
     void zhuhanshu();
-    void biaodashi();
-    void xiang();
-    void yinzi();
+    int biaodashi();
+    int xiang();
+    int yinzi();
     void yuju();
     void fuzhiyuju();
     void tiaojianyuju();
@@ -60,16 +60,17 @@ public:
     void xunhuanyuju();
     void buchang();
     void qingkuangyuju();
-    void qingkuangbiao();
-    void qingkuangziyuju();
+    void qingkuangbiao(int);
+    void qingkuangziyuju(int);
     void quesheng();
     void youfanhuizhihanshudiaoyongyuju();
     void wufanhuizhihanshudiaoyongyuju();
-    void zhicanshubiao();
+    int zhicanshubiao(std::vector<int>);
     void yujulie();
     void duyuju();
     void xieyuju();
     void fanhuiyuju();
+    void biaoshifu();
 
     Parser();
 

@@ -1,6 +1,12 @@
 #include "head.h"
-#define PRINT_TOKEN
-#define PRINT_GRAMMER
+
+std::string str_tolower(std::string s)
+{
+    std::string t;
+    t.resize(s.size());
+    transform(s.begin(),s.end(),t.begin(),::tolower);
+    return t;
+}
 
 token::token(int type,std::string word,int line)
 {
@@ -58,9 +64,7 @@ std::string token_type_to_string(int type)
 
 int is_reserverd_word(std::string s)
 {
-    std::string t;
-    t.resize(s.size());
-    transform(s.begin(),s.end(),t.begin(),::tolower);
+    std::string t=str_tolower(s);
     if(t=="const") return CONSTTK;
     else if(t=="int") return INTTK;
     else if(t=="char") return CHARTK;
