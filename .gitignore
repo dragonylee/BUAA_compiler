@@ -1,5 +1,6 @@
 *.txt
 *.rar
+*.zip
 *.cbp
 *.depend
 *.layout
