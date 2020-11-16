@@ -1,4 +1,49 @@
 #include "parser.h"
+#include "mid.h"
+#include "head.h"
+
+int label_cnt=0;
+int uselessi;
+std::string useless;
+
+// 预先加载所有string
+std::map<std::string,std::string> strmap;
+
+void reverse(std::string& r1,std::string& r2,OP& op)
+{
+    if(op==OP::BEQ_) op=OP::BNE_;
+    else if(op==OP::BNE_) op=OP::BEQ_;
+    else if(op==OP::BLE_) op=OP::BLT_,swap(r1,r2);
+    else if(op==OP::BLT_) op=OP::BLE_,swap(r1,r2);
+}
+
+std::string next_label()
+{
+    label_cnt++;
+    std::string s=LABEL_HEAD;
+    return s+std::to_string(label_cnt);
+}
+
+std::string first_r()
+{
+    std::string r=R_HEAD;
+    r+="1";
+    return r;
+}
+
+std::string next_r(std::string r)
+{
+    r.replace(0,sizeof(R_HEAD)/sizeof(char)-1,"");
+    r=std::to_string(string_to_int(r)+1);
+    std::string s=R_HEAD;
+    return s+r;
+}
+
+std::string Parser::base_addr()
+{
+    if(nowWord=="global") return "$zero";
+    else return R_SP;
+}
 
 Parser::Parser()
 {
@@ -7,6 +52,24 @@ Parser::Parser()
     cur=0;
     nowWord="global";
     get_nowtoken();
+
+    // 预处理所有string
+    extern int global_offset;
+    add_instruct(OP::SETSTR_,".data");
+    int num=0;
+    for(token t:tokens) if(t.type==STRCON && !strmap.count(t.word))
+    {
+        num++;
+        strmap[t.word]="str"+std::to_string(num);
+        add_instruct(OP::SETSTR_,"str"+std::to_string(num)+": .asciiz \""+t.word+"\"");
+        global_offset+=t.word.length()*2+2;
+    }
+    // 添加一个换行专用
+    add_instruct(OP::SETSTR_,"newline: .asciiz \"\\n\"");
+    global_offset+=4;
+    if(global_offset%4!=0) global_offset=global_offset/4*4+4;
+
+    add_instruct(OP::SETSTR_,".text");
 }
 
 int Parser::get_nowtoken()
@@ -95,7 +158,7 @@ void Parser::guanxiyunsuanfu()
 }
 
 // <字符> ::= CHARCON
-void Parser::zifu()
+void Parser::zifu(int &num)
 {
     if(nowtoken.type!=CHARCON)
     {
@@ -108,6 +171,7 @@ void Parser::zifu()
         {
             error(nowtoken.line,error_a);
         }
+        num=(int)nowtoken.word[0];
         get_nowtoken();
         grammer g(ZIFU);
         //print_grammer(g);
@@ -152,6 +216,7 @@ void Parser::zifuchuan()
 }
 进入<主函数>；
 */
+
 void Parser::chengxu()
 {
     if(nowtoken.type==CONSTTK)
@@ -163,6 +228,8 @@ void Parser::chengxu()
     {
         bianliangshuoming();    // 变量说明
     }
+    // 完成变量说明后要跳转到主函数
+    add_instruct(OP::JUMP_,"main");
     while(((nowtoken.type==INTTK || nowtoken.type==CHARTK) && (cur+1<tokens_num && tokens[cur+1].type==LPARENT))
         || (nowtoken.type==VOIDTK && cur<tokens_num && tokens[cur].type!=MAINTK))
     {
@@ -173,9 +240,11 @@ void Parser::chengxu()
         else if(nowtoken.type==VOIDTK && cur<tokens_num && tokens[cur].type!=MAINTK)
         {
             wufanhuizhihanshudingyi();  // 无返回值函数定义
+            add_instruct(OP::RETURN_);  // 以防万一（有些void函数可以不写return）
         }
     }
     zhuhanshu();    // 主函数
+    add_instruct(OP::EXIT_);
 
     grammer g(CHENGXU);
     print_grammer(g);
@@ -209,6 +278,7 @@ void Parser::changliangdingyi()
 {
     if(nowtoken.type==INTTK)
     {
+        int num;
         get_nowtoken();
         if(nowtoken.type!=IDENFR)
         {
@@ -218,13 +288,15 @@ void Parser::changliangdingyi()
         {
             error(nowtoken.line,error_b);
         }
+        std::string word=nowtoken.word;
         get_nowtoken();
         if(nowtoken.type!=ASSIGN)
         {
             error();
         }
         get_nowtoken();
-        zhengshu();
+        zhengshu(num);
+        add_instruct(OP::ASSIGN_,word,std::to_string(num));
         while(nowtoken.type==COMMA)
         {
             get_nowtoken();
@@ -236,17 +308,20 @@ void Parser::changliangdingyi()
             {
                 error(nowtoken.line,error_b);
             }
+            std::string word=nowtoken.word;
             get_nowtoken();
             if(nowtoken.type!=ASSIGN)
             {
                 error();
             }
             get_nowtoken();
-            zhengshu();
+            zhengshu(num);
+            add_instruct(OP::ASSIGN_,word,std::to_string(num));
         }
     }
     else if(nowtoken.type==CHARTK)
     {
+        int num,offset;
         get_nowtoken();
         if(nowtoken.type!=IDENFR)
         {
@@ -256,13 +331,15 @@ void Parser::changliangdingyi()
         {
             error(nowtoken.line,error_b);
         }
+        std::string word=nowtoken.word;
         get_nowtoken();
         if(nowtoken.type!=ASSIGN)
         {
             error();
         }
         get_nowtoken();
-        zifu();
+        zifu(num);
+        add_instruct(OP::ASSIGN_,word,std::to_string(num));
         while(nowtoken.type==COMMA)
         {
             get_nowtoken();
@@ -274,13 +351,15 @@ void Parser::changliangdingyi()
             {
                 error(nowtoken.line,error_b);
             }
+            std::string word=nowtoken.word;
             get_nowtoken();
             if(nowtoken.type!=ASSIGN)
             {
                 error();
             }
             get_nowtoken();
-            zifu();
+            zifu(num);
+            add_instruct(OP::ASSIGN_,word,std::to_string(num));
         }
     }
     else
@@ -294,7 +373,7 @@ void Parser::changliangdingyi()
 
 // <无符号整数> ::= <数字>{<数字>}
 // <无符号整数> ::= INTCON
-void Parser::wufuhaozhengshu()
+void Parser::wufuhaozhengshu(int &num)
 {
     if(nowtoken.type!=INTCON)
     {
@@ -303,6 +382,7 @@ void Parser::wufuhaozhengshu()
     }
     else
     {
+        num=string_to_int(nowtoken.word);
         get_nowtoken();
         grammer g(WUFUHAOZHENGSHU);
         print_grammer(g);
@@ -310,13 +390,16 @@ void Parser::wufuhaozhengshu()
 }
 
 // <整数> ::= [+|-]<无符号整数>
-void Parser::zhengshu()
+void Parser::zhengshu(int &num)
 {
+    int flag=1;
+    if(nowtoken.type==MINU) flag=-1;
     if(nowtoken.type==PLUS || nowtoken.type==MINU)
     {
         jiafayunsuanfu();
     }
-    wufuhaozhengshu();
+    wufuhaozhengshu(num);
+    num=num*flag;
 
     grammer g(ZHENGSHU);
     print_grammer(g);
@@ -342,6 +425,7 @@ void Parser::shengmingtoubu()
         {
             // 修改nowWord为当前函数名字
             nowWord=nowtoken.word;
+            add_instruct(OP::SETLABEL_,nowtoken.word);
             get_nowtoken();
         }
     }
@@ -356,17 +440,17 @@ void Parser::shengmingtoubu()
 // <常量> ::= <整数>|<字符>
 // 字符的首符号集为{CHARCON}
 // 整数的首符号集为{PLUS,MINU,INTCON}
-int Parser::changliang()
+int Parser::changliang(int &num)
 {
     int ret=CHARTK;
     if(nowtoken.type==INTCON || nowtoken.type==PLUS || nowtoken.type==MINU)
     {
         ret=INTTK;
-        zhengshu();
+        zhengshu(num);
     }
     else if(nowtoken.type==CHARCON)
     {
-        zifu();
+        zifu(num);
     }
     else
     {
@@ -469,7 +553,8 @@ void Parser::bianliangdingyiwuchushihua()
         else word=nowtoken.word;
         get_nowtoken();
 
-        int lnum=0;
+        int lnum=0,num;
+        std::vector<int> dd;
         while(nowtoken.type==LBRACK)
         {
             lnum++;
@@ -479,7 +564,8 @@ void Parser::bianliangdingyiwuchushihua()
                 // 数组元素下标只能是整型
                 error(nowtoken.line,error_i);
             }
-            wufuhaozhengshu();
+            wufuhaozhengshu(num);
+            dd.push_back(num);
             if(nowtoken.type!=RBRACK)
             {
                 // 没有右中括号当做缺失处理，也就是不往后读一个token
@@ -487,7 +573,7 @@ void Parser::bianliangdingyiwuchushihua()
             }
             else get_nowtoken();
         }
-        if(!add_to_symbolTable(nowWord,word,lnum>0?objType::ARRAY:objType::VARIABLE,vartype,lnum))
+        if(!add_to_symbolTable(nowWord,word,lnum>0?objType::ARRAY:objType::VARIABLE,vartype,lnum,dd))
         {
             error(nowtoken.line,error_b);
         }
@@ -514,10 +600,13 @@ void Parser::bianliangdingyijichushihua()
     else word=nowtoken.word;
     get_nowtoken();
 
+    std::vector<int> dd;
+
     if(nowtoken.type==ASSIGN)   // 变量初始化
     {
+        int num;
         get_nowtoken();
-        if(changliang()!=type)
+        if(changliang(num)!=type)
         {
             error(nowtoken.line,error_o);
         }
@@ -525,6 +614,7 @@ void Parser::bianliangdingyijichushihua()
         {
             error(nowtoken.line,error_b);
         }
+        add_instruct(OP::ASSIGN_,word,std::to_string(num));
     }
     else if(nowtoken.type==LBRACK)
     {
@@ -539,7 +629,8 @@ void Parser::bianliangdingyijichushihua()
             // 数组元素下标只能是整型
             error(nowtoken.line,error_i);
         }
-        wufuhaozhengshu();
+        wufuhaozhengshu(x1);
+        dd.push_back(x1);
         if(nowtoken.type!=RBRACK)
         {
             error(nowtoken.line,error_m);
@@ -548,6 +639,8 @@ void Parser::bianliangdingyijichushihua()
         if(nowtoken.type==ASSIGN)   // 一维数组初始化
         {
             // '{' <常量> {,<常量>} '}'
+            int num;
+            std::vector<int> tmp;
             get_nowtoken();
             if(nowtoken.type!=LBRACE)
             {
@@ -555,17 +648,19 @@ void Parser::bianliangdingyijichushihua()
             }
             get_nowtoken();
             int tot1=1;
-            if(changliang()!=type)
+            if(changliang(num)!=type)
             {
                 error(nowtoken.line,error_o);
             }
+            tmp.push_back(num);
             while(nowtoken.type==COMMA)
             {
                 get_nowtoken();
-                if(changliang()!=type)
+                if(changliang(num)!=type)
                 {
                     error(nowtoken.line,error_o);
                 }
+                tmp.push_back(num);
                 tot1++;
             }
             if(tot1!=x1)
@@ -578,9 +673,13 @@ void Parser::bianliangdingyijichushihua()
                 error();
             }
             else get_nowtoken();
-            if(!add_to_symbolTable(nowWord,word,objType::ARRAY,vartype,1))
+            if(!add_to_symbolTable(nowWord,word,objType::ARRAY,vartype,1,dd))
             {
                 error(nowtoken.line,error_b);
+            }
+            for(int i=0;i<tmp.size();i++)
+            {
+                add_instruct(OP::SARRAY_,std::to_string(tmp[i]),word,std::to_string(i));
             }
         }
         else if(nowtoken.type==LBRACK)
@@ -596,7 +695,8 @@ void Parser::bianliangdingyijichushihua()
                 // 数组元素下标只能是整型
                 error(nowtoken.line,error_i);
             }
-            wufuhaozhengshu();
+            wufuhaozhengshu(x2);
+            dd.push_back(x2);
             if(nowtoken.type!=RBRACK)
             {
                 error(nowtoken.line,error_m);
@@ -607,6 +707,8 @@ void Parser::bianliangdingyijichushihua()
                 // '{' '{' <常量>{,<常量>} '}' {,'{'<常量>{,<常量>} '}' }  '}'
                 get_nowtoken();
                 int tot1=0,tot2=0;
+                int num;
+                std::vector<int> tmp;
                 if(nowtoken.type!=LBRACE)
                 {
                     error();
@@ -618,18 +720,20 @@ void Parser::bianliangdingyijichushihua()
                 }
                 else tot1++;
                 get_nowtoken();
-                if(changliang()!=type)
+                if(changliang(num)!=type)
                 {
                     error(nowtoken.line,error_o);
                 }
                 tot2++;
+                tmp.push_back(num);
                 while(nowtoken.type==COMMA)
                 {
                     get_nowtoken();
-                    if(changliang()!=type)
+                    if(changliang(num)!=type)
                     {
                         error(nowtoken.line,error_o);
                     }
+                    tmp.push_back(num);
                     tot2++;
                 }
                 if(tot2!=x2)
@@ -652,18 +756,20 @@ void Parser::bianliangdingyijichushihua()
                     }
                     else tot1++;
                     get_nowtoken();
-                    if(changliang()!=type)
+                    if(changliang(num)!=type)
                     {
                         error(nowtoken.line,error_o);
                     }
+                    tmp.push_back(num);
                     tot2=1;
                     while(nowtoken.type==COMMA)
                     {
                         get_nowtoken();
-                        if(changliang()!=type)
+                        if(changliang(num)!=type)
                         {
                             error(nowtoken.line,error_o);
                         }
+                        tmp.push_back(num);
                         tot2++;
                     }
                     if(tot2!=x2)
@@ -686,9 +792,13 @@ void Parser::bianliangdingyijichushihua()
                     error();
                 }
                 get_nowtoken();
-                if(!add_to_symbolTable(nowWord,word,objType::ARRAY,vartype,2))
+                if(!add_to_symbolTable(nowWord,word,objType::ARRAY,vartype,2,dd))
                 {
                     error(nowtoken.line,error_b);
+                }
+                for(int i=0;i<tmp.size();i++)
+                {
+                    add_instruct(OP::SARRAY_,std::to_string(tmp[i]),word,std::to_string(i));
                 }
             }
             else
@@ -788,8 +898,9 @@ void Parser::wufanhuizhihanshudingyi()
     {
         error(nowtoken.line,error_b);
     }
-    // 将nowWord置为当前函数内
+    // 将nowWord置为当前函数
     nowWord=nowtoken.word;
+    add_instruct(OP::SETLABEL_,nowtoken.word);
     get_nowtoken();
 
     if(nowtoken.type!=LPARENT)
@@ -863,6 +974,7 @@ void Parser::fuheyuju()
 */
 int Parser::canshubiao()
 {
+    symbolEntry se;
     int tot=0;
     if(nowtoken.type==INTTK || nowtoken.type==CHARTK)
     {
@@ -876,6 +988,7 @@ int Parser::canshubiao()
                 error(nowtoken.line,error_b);
             }
             modify_add_parameter(nowWord,vartype==varType::INT?INTTK:CHARTK);
+            modify_add_parameter_name(nowWord,nowtoken.word);
             get_nowtoken();
             tot++;
         }
@@ -892,6 +1005,7 @@ int Parser::canshubiao()
                     error(nowtoken.line,error_b);
                 }
                 modify_add_parameter(nowWord,vartype==varType::INT?INTTK:CHARTK);
+                modify_add_parameter_name(nowWord,nowtoken.word);
                 get_nowtoken();
                 tot++;
             }
@@ -917,6 +1031,7 @@ void Parser::zhuhanshu()
     }
     else
     {
+        add_instruct(OP::SETLABEL_,nowtoken.word);
         if(!add_to_symbolTable(nowWord,nowtoken.word,objType::FUNCTION,varType::VOID,0))
         {
             error(nowtoken.line,error_b);
@@ -970,19 +1085,30 @@ void Parser::zhuhanshu()
 （3）CHARCON；
 其他情况都是INTTK
 */
-int Parser::biaodashi()
+// 返回表达式类别, CHARTK / INTTK
+int Parser::biaodashi(std::string r_up)
 {
-    int ret=CHARTK;
+    int ret=CHARTK,flag=0;
+    std::string t1=next_r(r_up);
+    if(nowtoken.type==MINU) flag=1;
     if(nowtoken.type==PLUS || nowtoken.type==MINU)
     {
         jiafayunsuanfu();
         ret=INTTK;
     }
-    if(xiang()==INTTK) ret=INTTK;
+    if(xiang(t1)==INTTK) ret=INTTK;
+    if(flag)
+    {
+        add_instruct(OP::SUB_,r_up,R_ZERO,t1);
+    }
+    else add_instruct(OP::ASSIGN_,r_up,t1);
     while(nowtoken.type==PLUS || nowtoken.type==MINU)
     {
+        flag=nowtoken.type==PLUS?0:1;
         jiafayunsuanfu();
-        xiang();
+        xiang(t1);
+        if(flag) add_instruct(OP::SUB_,r_up,r_up,t1);
+        else add_instruct(OP::ADD_,r_up,r_up,t1);
         ret=INTTK;
     }
 
@@ -992,14 +1118,19 @@ int Parser::biaodashi()
 }
 
 // <项> ::= <因子>{<乘法运算符><因子>}
-int Parser::xiang()
+int Parser::xiang(std::string r_up)
 {
     int ret=CHARTK;
-    if(yinzi()==INTTK) ret=INTTK;
+    std::string t1=next_r(r_up);
+    if(yinzi(t1)==INTTK) ret=INTTK;
+    add_instruct(OP::ASSIGN_,r_up,t1);
     while(nowtoken.type==MULT || nowtoken.type==DIV)
     {
+        int flag=nowtoken.type==MULT?0:1;
         chengfayunsuanfu();
-        yinzi();
+        yinzi(t1);
+        if(flag) add_instruct(OP::DIV_,r_up,r_up,t1);
+        else add_instruct(OP::MULT_,r_up,r_up,t1);
         ret=INTTK;
     }
 
@@ -1029,7 +1160,7 @@ int Parser::xiang()
 如果nowtoken的type是PLUS、MINU或INTCON，进入zhengshu；
 如果nowtoken的type是CHARCON，进入字符
 */
-int Parser::yinzi()
+int Parser::yinzi(std::string r_up)
 {
     int ret=CHARTK;
     if(nowtoken.type==IDENFR)
@@ -1041,7 +1172,7 @@ int Parser::yinzi()
             {
                 if(se.vartype==varType::INT) ret=INTTK;
             }
-            youfanhuizhihanshudiaoyongyuju();
+            youfanhuizhihanshudiaoyongyuju(r_up);
         }
         else
         {
@@ -1050,11 +1181,13 @@ int Parser::yinzi()
             {
                 if(se.vartype==varType::INT) ret=INTTK;
             }
+            std::string word=nowtoken.word;
             biaoshifu();
             if(nowtoken.type==LBRACK)
             {
                 get_nowtoken();
-                if(biaodashi()!=INTTK)
+                std::string t1=next_r(r_up);
+                if(biaodashi(t1)!=INTTK)
                 {
                     error(nowtoken.line,error_i);
                 }
@@ -1066,7 +1199,8 @@ int Parser::yinzi()
                 if(nowtoken.type==LBRACK)
                 {
                     get_nowtoken();
-                    if(biaodashi()!=INTTK)
+                    std::string t2=next_r(t1);
+                    if(biaodashi(t2)!=INTTK)
                     {
                         error(nowtoken.line,error_i);
                     }
@@ -1075,7 +1209,22 @@ int Parser::yinzi()
                         error(nowtoken.line,error_m);
                     }
                     else get_nowtoken();
+                    symbolEntry se;
+                    get_symbolEntry(nowWord,word,se);
+                    // r_up = word[t1][t2]
+                    add_instruct(OP::MULT_,t1,t1,std::to_string(se.dd[1]));
+                    add_instruct(OP::ADD_,t1,t1,t2);
+                    add_instruct(OP::LARRAY_,r_up,word,t1);
                 }
+                else
+                {
+                    // 一维数组 r_up=word[t1]
+                    add_instruct(OP::LARRAY_,r_up,word,t1);
+                }
+            }
+            else
+            {
+                add_instruct(OP::ASSIGN_,r_up,word);
             }
         }
     }
@@ -1083,7 +1232,7 @@ int Parser::yinzi()
     {
         ret=INTTK;
         get_nowtoken();
-        biaodashi();
+        biaodashi(r_up);
         if(nowtoken.type!=RPARENT)
         {
             // 默认缺失
@@ -1094,11 +1243,15 @@ int Parser::yinzi()
     else if(nowtoken.type==PLUS || nowtoken.type==MINU || nowtoken.type==INTCON)
     {
         ret=INTTK;
-        zhengshu();
+        int num;
+        zhengshu(num);
+        add_instruct(OP::ASSIGN_,r_up,std::to_string(num));
     }
     else if(nowtoken.type==CHARCON)
     {
-        zifu();
+        int num;
+        zifu(num);
+        add_instruct(OP::ASSIGN_,r_up,std::to_string(num));
     }
     else
     {
@@ -1164,7 +1317,8 @@ void Parser::yuju()
             }
             else
             {
-                youfanhuizhihanshudiaoyongyuju();
+                std::string r=first_r();
+                youfanhuizhihanshudiaoyongyuju(r);
             }
 
             if(nowtoken.type!=SEMICN)
@@ -1243,10 +1397,14 @@ void Parser::fuzhiyuju()
             error(nowtoken.line,error_j);
         }
     }
+    int type=0;
+    std::string t1=first_r();
+    std::string t2=next_r(t1),t3=next_r(t2);
     if(nowtoken.type==LBRACK)
     {
+        type=1;
         get_nowtoken();
-        if(biaodashi()!=INTTK)
+        if(biaodashi(t1)!=INTTK)
         {
             error(nowtoken.line,error_i);
         }
@@ -1258,7 +1416,7 @@ void Parser::fuzhiyuju()
         if(nowtoken.type==LBRACK)
         {
             get_nowtoken();
-            if(biaodashi()!=INTTK)
+            if(biaodashi(t2)!=INTTK)
             {
                 error(nowtoken.line,error_i);
             }
@@ -1267,6 +1425,11 @@ void Parser::fuzhiyuju()
                 error(nowtoken.line,error_m);
             }
             else get_nowtoken();
+            // tmp[t2][t3]
+            get_symbolEntry(nowWord,tmp,se);
+            add_instruct(OP::MULT_,t1,t1,std::to_string(se.dd[1]));
+            add_instruct(OP::ADD_,t1,t1,t2);
+            // now become tmp[t2]
         }
     }
     if(nowtoken.type!=ASSIGN)
@@ -1274,15 +1437,26 @@ void Parser::fuzhiyuju()
         error();
     }
     get_nowtoken();
-    biaodashi();
+    biaodashi(t3);
+    if(!type)
+    {
+        add_instruct(OP::ASSIGN_,tmp,t3);
+    }
+    else
+    {
+        add_instruct(OP::SARRAY_,t3,tmp,t1);
+    }
 
     grammer g(FUZHIYUJU);
     print_grammer(g);
 }
 
 // <条件语句> ::= if '('<条件>')'<语句>［else<语句>］
+// branch if r1 op r2
 void Parser::tiaojianyuju()
 {
+    std::string r1=first_r(),r2=next_r(r1);
+    OP op;
     if(nowtoken.type!=IFTK)
     {
         error();
@@ -1293,34 +1467,52 @@ void Parser::tiaojianyuju()
         error();
     }
     get_nowtoken();
-    tiaojian();
+    tiaojian(r1,r2,op);
     if(nowtoken.type!=RPARENT)
     {
         error(nowtoken.line,error_l);
     }
     else get_nowtoken();
+
+    std::string lb1=next_label(),lb2=next_label(),lb3=next_label();
+    add_instruct(op,r1,r2,lb1);
+    add_instruct(OP::JUMP_,lb2);
+    add_instruct(OP::SETLABEL_,lb1);
     yuju();
+    add_instruct(OP::JUMP_,lb3);
+    add_instruct(OP::SETLABEL_,lb2);
+
     if(nowtoken.type==ELSETK)
     {
         get_nowtoken();
         yuju();
     }
 
+    add_instruct(OP::SETLABEL_,lb3);
+
     grammer g(TIAOJIANYUJU);
     print_grammer(g);
 }
 
 // <条件> ::= <表达式><关系运算符><表达式>
-void Parser::tiaojian()
+// 只能是整型之间比
+void Parser::tiaojian(std::string& r1,std::string& r2,OP& op)
 {
-    int x=biaodashi();
+    int x=biaodashi(r1);
+    int type=nowtoken.type;
     guanxiyunsuanfu();
-    int y=biaodashi();
+    int y=biaodashi(r2);
     if(x==CHARTK || y==CHARTK)
     {
         // 条件左右只能是整型
         error(lasttoken.line,error_f);
     }
+    if(type==LSS) op=OP::BLT_;
+    else if(type==LEQ) op=OP::BLE_;
+    else if(type==GRE) op=OP::BLT_,swap(r1,r2);
+    else if(type==GEQ) op=OP::BLE_,swap(r1,r2);
+    else if(type==EQL) op=OP::BEQ_;
+    else if(type==NEQ) op=OP::BNE_;
 
     grammer g(TIAOJIAN);
     print_grammer(g);
@@ -1329,6 +1521,8 @@ void Parser::tiaojian()
 // <循环语句> ::= while'('<条件>')'<语句>| for'('<标识符>＝<表达式>;<条件>;<标识符>＝<标识符>(+|-)<步长>')'<语句>
 void Parser::xunhuanyuju()
 {
+    std::string r1=first_r(),r2=next_r(r1);
+    OP op;
     if(nowtoken.type==WHILETK)
     {
         get_nowtoken();
@@ -1337,13 +1531,22 @@ void Parser::xunhuanyuju()
             error();
         }
         get_nowtoken();
-        tiaojian();
+
+        std::string lb1=next_label(),lb2=next_label();
+        add_instruct(OP::SETLABEL_,lb1);
+        tiaojian(r1,r2,op);
+        reverse(r1,r2,op);
+        add_instruct(op,r1,r2,lb2);
+
         if(nowtoken.type!=RPARENT)
         {
             error(nowtoken.line,error_l);
         }
         else get_nowtoken();
         yuju();
+
+        add_instruct(OP::JUMP_,lb1);
+        add_instruct(OP::SETLABEL_,lb2);
     }
     else if(nowtoken.type==FORTK)
     {
@@ -1370,13 +1573,20 @@ void Parser::xunhuanyuju()
             error();
         }
         get_nowtoken();
-        biaodashi();
+        biaodashi(r1);
         if(nowtoken.type!=SEMICN)
         {
             error(lasttoken.line,error_k);
         }
         else get_nowtoken();
-        tiaojian();
+
+        add_instruct(OP::ASSIGN_,tmp,r1);
+        std::string lb1=next_label(),lb2=next_label();
+        add_instruct(OP::SETLABEL_,lb1);
+        tiaojian(r1,r2,op);
+        reverse(r1,r2,op);
+        add_instruct(op,r1,r2,lb2);
+
         if(nowtoken.type!=SEMICN)
         {
             error(lasttoken.line,error_k);
@@ -1388,19 +1598,27 @@ void Parser::xunhuanyuju()
             error();
         }
         get_nowtoken();
+        std::string tmp2=nowtoken.word;
         biaoshifu();
+        int flag=0,num;
+        if(nowtoken.type==PLUS) flag=1;
         if(nowtoken.type!=PLUS && nowtoken.type!=MINU)
         {
             error();
         }
         get_nowtoken();
-        buchang();
+        buchang(num);
         if(nowtoken.type!=RPARENT)
         {
             error(nowtoken.line,error_l);
         }
         else get_nowtoken();
         yuju();
+
+        if(flag) add_instruct(OP::ADD_,tmp2,tmp2,std::to_string(num));
+        else add_instruct(OP::SUB_,tmp2,tmp2,std::to_string(num));
+        add_instruct(OP::JUMP_,lb1);
+        add_instruct(OP::SETLABEL_,lb2);
     }
     else
     {
@@ -1412,9 +1630,9 @@ void Parser::xunhuanyuju()
 }
 
 // <步长> ::= <无符号整数>
-void Parser::buchang()
+void Parser::buchang(int& num)
 {
-    wufuhaozhengshu();
+    wufuhaozhengshu(num);
 
     grammer g(BUCHANG);
     print_grammer(g);
@@ -1423,6 +1641,7 @@ void Parser::buchang()
 // <情况语句> ::= switch '('<表达式>')' '{'<情况表><缺省>'}'
 void Parser::qingkuangyuju()
 {
+    std::string r1=first_r();
     if(nowtoken.type!=SWITCHTK)
     {
         error();
@@ -1433,7 +1652,7 @@ void Parser::qingkuangyuju()
         error();
     }
     get_nowtoken();
-    int x=biaodashi();
+    int x=biaodashi(r1);
     if(nowtoken.type!=RPARENT)
     {
         error(nowtoken.line,error_l);
@@ -1444,8 +1663,12 @@ void Parser::qingkuangyuju()
         error();
     }
     get_nowtoken();
-    qingkuangbiao(x);
+
+    std::string lb1=next_label();
+    qingkuangbiao(x,lb1,r1);
     quesheng();
+    add_instruct(OP::SETLABEL_,lb1);
+
     if(nowtoken.type!=RBRACE)
     {
         error();
@@ -1457,12 +1680,12 @@ void Parser::qingkuangyuju()
 }
 
 // <情况表> ::= <情况子语句>{<情况子语句>}
-void Parser::qingkuangbiao(int type)
+void Parser::qingkuangbiao(int type,std::string lb1,std::string r1)
 {
-    qingkuangziyuju(type);
+    qingkuangziyuju(type,lb1,r1);
     while(nowtoken.type==CASETK)
     {
-        qingkuangziyuju(type);
+        qingkuangziyuju(type,lb1,r1);
     }
 
     grammer g(QINGKUANGBIAO);
@@ -1470,14 +1693,15 @@ void Parser::qingkuangbiao(int type)
 }
 
 // <情况子语句> ::= case<常量>:<语句>
-void Parser::qingkuangziyuju(int type)
+void Parser::qingkuangziyuju(int type,std::string lb1,std::string r1)
 {
     if(nowtoken.type!=CASETK)
     {
         error();
     }
     get_nowtoken();
-    if(changliang()!=type)
+    int num;
+    if(changliang(num)!=type)
     {
         error(nowtoken.line,error_o);
     }
@@ -1486,13 +1710,19 @@ void Parser::qingkuangziyuju(int type)
         error();
     }
     get_nowtoken();
+
+    std::string lb2=next_label();
+    add_instruct(OP::BNE_,r1,std::to_string(num),lb2);
     yuju();
+    add_instruct(OP::JUMP_,lb1);
+    add_instruct(OP::SETLABEL_,lb2);
 
     grammer g(QINGKUANGZIYUJU);
     print_grammer(g);
 }
 
 // <缺省> ::= default:<语句>
+// 这里啥也不用干，因为前面如果有满足的就会直接跳过这里
 void Parser::quesheng()
 {
     if(nowtoken.type!=DEFAULTTK)
@@ -1514,7 +1744,7 @@ void Parser::quesheng()
 }
 
 // <有返回值函数调用语句> ::= <标识符>'('<值参数表>')'
-void Parser::youfanhuizhihanshudiaoyongyuju()
+void Parser::youfanhuizhihanshudiaoyongyuju(std::string r_up)
 {
     std::string tmp=nowtoken.word;
     biaoshifu();
@@ -1523,7 +1753,9 @@ void Parser::youfanhuizhihanshudiaoyongyuju()
         error();
     }
     get_nowtoken();
-    int num=zhicanshubiao(get_parameters(tmp));
+    std::vector<std::string> para_value;
+    std::vector<std::string> para_name=get_parameters_name(tmp);
+    int num=zhicanshubiao(get_parameters(tmp),para_value,r_up);
     symbolEntry se;
     if(!get_symbolEntry(nowWord,tmp,se))
     {
@@ -1540,6 +1772,28 @@ void Parser::youfanhuizhihanshudiaoyongyuju()
         error(nowtoken.line,error_l);
     }
     else get_nowtoken();
+
+    // 先把自己用过的push
+    add_instruct(OP::PUSH_);
+    // 然后把R_SP减去分配空间
+    add_instruct(OP::SUB_,R_SP,R_SP,std::to_string(get_total_offset(tmp)));
+    // 然后发送参数
+    for(int i=0;i<para_value.size();i++)
+    {
+        add_instruct(OP::SENDP_,para_value[i],
+                     std::to_string(get_offset(tmp,para_name[i])),
+                     R_SP);
+    }
+    // 然后调用函数
+    add_instruct(OP::CALL_,tmp);
+    // 然后把R_SP加上分配空间
+    add_instruct(OP::ADD_,R_SP,R_SP,std::to_string(get_total_offset(tmp)));
+    // 然后把用过的pop
+    add_instruct(OP::POP_);
+
+    // 最后把 R_RET 处的答案给 r_up
+    add_instruct(OP::ASSIGN_,r_up,R_RET);
+
 
     grammer g(YOUFANHUIZHIHANSHUDIAOYONGYUJU);
     print_grammer(g);
@@ -1555,7 +1809,9 @@ void Parser::wufanhuizhihanshudiaoyongyuju()
         error();
     }
     get_nowtoken();
-    int num=zhicanshubiao(get_parameters(tmp));
+    std::vector<std::string> para_value;
+    std::vector<std::string> para_name=get_parameters_name(tmp);
+    int num=zhicanshubiao(get_parameters(tmp),para_value,first_r());
     symbolEntry se;
     if(!get_symbolEntry(nowWord,tmp,se))
     {
@@ -1572,6 +1828,25 @@ void Parser::wufanhuizhihanshudiaoyongyuju()
         error(nowtoken.line,error_l);
     }
     else get_nowtoken();
+
+    // 先把自己用过的push
+    add_instruct(OP::PUSH_);
+    // 然后把R_SP减去分配空间
+    add_instruct(OP::SUB_,R_SP,R_SP,std::to_string(get_total_offset(tmp)));
+    // 然后发送参数
+    for(int i=0;i<para_value.size();i++)
+    {
+        add_instruct(OP::SENDP_,para_value[i],
+                     std::to_string(get_offset(tmp,para_name[i])),
+                     R_SP);
+    }
+    // 然后调用函数
+    add_instruct(OP::CALL_,tmp);
+    // 然后把R_SP加上分配空间
+    add_instruct(OP::ADD_,R_SP,R_SP,std::to_string(get_total_offset(tmp)));
+    // 然后把用过的pop
+    add_instruct(OP::POP_);
+    // 最后不用return
 
     grammer g(WUFANHUIZHIHANSHUDIAOYONGYUJU);
     print_grammer(g);
@@ -1588,30 +1863,38 @@ INTCON
 CHARCON
 */
 // 值参数表只在函数调用语句里面出现，所以可以根据当前token的type是否为RPARENT来判断是否为空
-int Parser::zhicanshubiao(std::vector<int> parameters)
+int Parser::zhicanshubiao(std::vector<int> parameters,
+                          std::vector<std::string>& para_value,
+                          std::string r1)
 {
+    std::string r;
     int tot=0;
     int i=0;
+    int num;
     if(nowtoken.type==PLUS || nowtoken.type==MINU || nowtoken.type==IDENFR ||
        nowtoken.type==LPARENT || nowtoken.type==INTCON || nowtoken.type==CHARCON)
     {
-        int x=biaodashi();
-        if(i<parameters.size() && parameters[i]!=x)
+        r=next_r(r1);
+        int x=biaodashi(r);
+        if(i<(int)parameters.size() && parameters[i]!=x)
         {
             // 函数参数类型不匹配
             error(nowtoken.line,error_e);
         }
+        para_value.push_back(r);
         i++;
         tot++;
         while(nowtoken.type==COMMA)
         {
             get_nowtoken();
-            x=biaodashi();
-            if(i<parameters.size() && parameters[i]!=x)
+            r=next_r(r);
+            x=biaodashi(r);
+            if(i<(int)parameters.size() && parameters[i]!=x)
             {
                 // 函数参数类型不匹配
                 error(nowtoken.line,error_e);
             }
+            para_value.push_back(r);
             i++;
             tot++;
         }
@@ -1655,6 +1938,8 @@ void Parser::duyuju()
     }
     get_nowtoken();
     symbolEntry se;
+    std::string word=nowtoken.word;
+    varType vt;
     if(get_symbolEntry(nowWord,nowtoken.word,se))
     {
         if(se.objtype==objType::CONST)
@@ -1662,6 +1947,7 @@ void Parser::duyuju()
             // 常量不能读入
             error(nowtoken.line,error_j);
         }
+        vt=se.vartype;
     }
     biaoshifu();
     if(nowtoken.type!=RPARENT)
@@ -1669,6 +1955,9 @@ void Parser::duyuju()
         error(nowtoken.line,error_l);
     }
     else get_nowtoken();
+
+    // read
+    add_instruct(OP::READ_,word,vt==varType::INT?"INT":"CHAR");
 
     grammer g(DUYUJU);
     print_grammer(g);
@@ -1678,7 +1967,7 @@ void Parser::duyuju()
 // <写语句> ::= printf'(' (<字符串>,<表达式>| <字符串>|<表达式>) ')'
 void Parser::xieyuju()
 {
-    if(nowtoken.type!=SCANFTK)
+    if(nowtoken.type!=PRINTFTK)
     {
         error();
     }
@@ -1691,16 +1980,27 @@ void Parser::xieyuju()
 
     if(nowtoken.type==STRCON)
     {
+        add_instruct(OP::PRINT_,nowtoken.word,"STRING",strmap[nowtoken.word]);
         zifuchuan();
         if(nowtoken.type==COMMA)
         {
             get_nowtoken();
-            biaodashi();
+            std::string r=first_r();
+            if(biaodashi(r)==INTTK)
+            {
+                add_instruct(OP::PRINT_,r,"INT");
+            }
+            else add_instruct(OP::PRINT_,r,"CHAR");
         }
     }
     else
     {
-        biaodashi();
+        std::string r=first_r();
+        if(biaodashi(r)==INTTK)
+        {
+            add_instruct(OP::PRINT_,r,"INT");
+        }
+        else add_instruct(OP::PRINT_,r,"CHAR");
     }
 
     if(nowtoken.type!=RPARENT)
@@ -1708,6 +2008,8 @@ void Parser::xieyuju()
         error(nowtoken.line,error_l);
     }
     else get_nowtoken();
+
+    add_instruct(OP::PRINT_,"\\n","STRING","newline");
 
     grammer g(XIEYUJU);
     print_grammer(g);
@@ -1744,7 +2046,11 @@ void Parser::fanhuiyuju()
             // 有返回值函数，有返回东西
             modify_isret(nowWord,1);
         }
-        int x=biaodashi();
+
+        std::string r=first_r();
+        int x=biaodashi(r);
+        add_instruct(OP::ASSIGN_,R_RET,r);
+
         if((vt==varType::CHAR && x==INTTK) || (vt==varType::INT && x==CHARTK))
         {
             error(lasttoken.line,error_h);
@@ -1764,11 +2070,12 @@ void Parser::fanhuiyuju()
         }
     }
 
+    if(nowWord=="main") add_instruct(OP::EXIT_);
+    else add_instruct(OP::RETURN_);
+
     grammer g(FANHUIYUJU);
     print_grammer(g);
 }
-
-
 
 
 // <标识符> ::= IDENFR

@@ -3,7 +3,7 @@
 
 //#define PRINT_TOKEN
 //#define PRINT_GRAMMER
-#define PRINT_ERROR
+//#define PRINT_ERROR
 
 #include <iostream>
 #include <cstdio>

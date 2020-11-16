@@ -5,6 +5,7 @@
 #include "head.h"
 #include "error.h"
 #include "symbol.h"
+#include "mid.h"
 
 /*
 语法分析。
@@ -26,20 +27,22 @@ private:
     std::string nowWord;
 
     void run_until(int token_type);
+    void add_parameter();
+    std::string base_addr();
 public:
     // 各个子处理程序
     void jiafayunsuanfu();
     void chengfayunsuanfu();
     void guanxiyunsuanfu();
-    void zifu();
+    void zifu(int& num);
     void zifuchuan();
     void chengxu();
     void changliangshuoming();
     void changliangdingyi();
-    void wufuhaozhengshu();
-    void zhengshu();
+    void wufuhaozhengshu(int& num);
+    void zhengshu(int& num);
     void shengmingtoubu();
-    int changliang();
+    int changliang(int& num);
     void bianliangshuoming();
     void bianliangdingyi();
     void bianliangdingyiwuchushihua();
@@ -50,22 +53,22 @@ public:
     void fuheyuju();
     int canshubiao();
     void zhuhanshu();
-    int biaodashi();
-    int xiang();
-    int yinzi();
+    int biaodashi(std::string r_up);
+    int xiang(std::string r_up);
+    int yinzi(std::string r_up);
     void yuju();
     void fuzhiyuju();
     void tiaojianyuju();
-    void tiaojian();
+    void tiaojian(std::string& r1,std::string& r2,OP& op);
     void xunhuanyuju();
-    void buchang();
+    void buchang(int& num);
     void qingkuangyuju();
-    void qingkuangbiao(int);
-    void qingkuangziyuju(int);
+    void qingkuangbiao(int,std::string lb1,std::string r1);
+    void qingkuangziyuju(int,std::string lb1,std::string r1);
     void quesheng();
-    void youfanhuizhihanshudiaoyongyuju();
+    void youfanhuizhihanshudiaoyongyuju(std::string r_up);
     void wufanhuizhihanshudiaoyongyuju();
-    int zhicanshubiao(std::vector<int>);
+    int zhicanshubiao(std::vector<int>,std::vector<std::string>&,std::string);
     void yujulie();
     void duyuju();
     void xieyuju();
@@ -77,5 +80,10 @@ public:
     // for debug
     void print_all_tokens();
 };
+
+// for debug
+std::string first_r();
+std::string next_r(std::string r);
+
 
 #endif // __PARSER_H__
